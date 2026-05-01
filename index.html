@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Work Hours Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --surface2: #1a1e25;
+    --border: #252b35;
+    --border-bright: #2e3747;
+    --accent: #00d4aa;
+    --accent-dim: rgba(0,212,170,0.12);
+    --accent-glow: rgba(0,212,170,0.25);
+    --warn: #f59e0b;
+    --warn-dim: rgba(245,158,11,0.12);
+    --danger: #f43f5e;
+    --danger-dim: rgba(244,63,94,0.1);
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .brand-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .brand-title {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+  }
+
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .stat-pill-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .stat-pill-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .stat-pill-value.positive { color: var(--accent); }
+  .stat-pill-value.negative { color: var(--danger); }
+  .stat-pill-value.neutral  { color: var(--text-dim); }
+
+  /* FORM */
+  .entry-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 2fr auto;
+    gap: 16px;
+    align-items: end;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  input, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 100%;
+  }
+
+  input:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5) sepia(1) saturate(2) hue-rotate(130deg);
+    cursor: pointer;
+  }
+
+  textarea {
+    resize: none;
+    height: 42px;
+    line-height: 1.4;
+  }
+
+  .btn-add {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 10px 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    height: 42px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn-add:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-add:active { transform: translateY(0); }
+
+  /* FILTERS */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .filter-group {
+    display: flex;
+    gap: 6px;
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filter-btn:hover:not(.active) {
+    border-color: var(--border-bright);
+    color: var(--text);
+  }
+
+  .search-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.15s;
+    margin-left: auto;
+  }
+
+  .search-input:focus { border-color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-bright);
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+
+  th:hover { color: var(--accent); }
+
+  th .sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+  th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+
+  td {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text-dim);
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr {
+    transition: background 0.1s;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  .td-date {
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .td-hours { color: var(--text); }
+
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .badge-positive {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,170,0.2);
+  }
+
+  .badge-negative {
+    background: var(--danger-dim);
+    color: var(--danger);
+    border: 1px solid rgba(244,63,94,0.2);
+  }
+
+  .badge-zero {
+    background: rgba(100,116,139,0.1);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .td-comment {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .btn-delete {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .btn-delete:hover {
+    background: var(--danger-dim);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .btn-edit {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 8px;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .btn-edit:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+  }
+
+  .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.3; }
+
+  .empty-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* MONTH SUMMARY BAR */
+  .month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+  }
+
+  .month-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .month-summary {
+    display: flex;
+    gap: 20px;
+  }
+
+  .month-stat {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .month-stat span {
+    font-weight: 600;
+  }
+
+  .month-stat .pos { color: var(--accent); }
+  .month-stat .neg { color: var(--danger); }
+  .month-stat .neu { color: var(--text-dim); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 12px;
+    padding: 28px;
+    width: 520px;
+    max-width: 95vw;
+  }
+
+  .modal-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+
+  .modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .modal-grid .field:last-child {
+    grid-column: span 2;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-cancel:hover { border-color: var(--border-bright); color: var(--text); }
+
+  .btn-save {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn-save:hover { opacity: 0.85; }
+
+  /* EXPORT */
+  .export-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+
+  .export-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: var(--accent);
+    color: #000;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 200;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  @media (max-width: 900px) {
+    .entry-form {
+      grid-template-columns: 1fr 1fr;
+    }
+    .header-stats { gap: 14px; }
+    .stat-pill-value { font-size: 16px; }
+  }
+
+  @media (max-width: 600px) {
+    .entry-form { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .header-stats { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="brand">
+      <span class="brand-label">// work tracker</span>
+      <span class="brand-title">HOURS_LOG</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill">
+        <span class="stat-pill-label">Total Entries</span>
+        <span class="stat-pill-value neutral" id="stat-entries">0</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Extra Hours</span>
+        <span class="stat-pill-value positive" id="stat-extra">+0.00</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Less Hours</span>
+        <span class="stat-pill-value negative" id="stat-less">-0.00</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Net Balance</span>
+        <span class="stat-pill-value neutral" id="stat-balance">0.00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ADD ENTRY FORM -->
+  <div class="entry-form">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="f-date" />
+    </div>
+    <div class="field">
+      <label>Hours Worked</label>
+      <input type="number" id="f-hours" placeholder="8.00" step="0.25" min="0" max="24" />
+    </div>
+    <div class="field">
+      <label>Extra Hours (+)</label>
+      <input type="number" id="f-extra" placeholder="0.00" step="0.25" min="0" />
+    </div>
+    <div class="field">
+      <label>Less Hours (-)</label>
+      <input type="number" id="f-less" placeholder="0.00" step="0.25" min="0" />
+    </div>
+    <div class="field">
+      <label>Comment</label>
+      <input type="text" id="f-comment" placeholder="e.g. worked through lunch, left early for appointment..." />
+    </div>
+    <button class="btn-add" onclick="addEntry()">+ ADD</button>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <span class="toolbar-label">Filter:</span>
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('extra', this)">Extra</button>
+      <button class="filter-btn" onclick="setFilter('less', this)">Less</button>
+      <button class="filter-btn" onclick="setFilter('balanced', this)">Balanced</button>
+    </div>
+    <input class="search-input" type="text" placeholder="Search comments..." oninput="render()" id="search-input" />
+    <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('date')">Date <span class="sort-arrow">▼</span></th>
+          <th onclick="sortBy('hours')">Hours Worked <span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('extra')">Extra (+) <span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('less')">Less (−) <span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('total')">Net <span class="sort-arrow">↕</span></th>
+          <th>Comment</th>
+          <th style="width:80px;text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">NO ENTRIES YET — ADD YOUR FIRST LOG ABOVE</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-title">// EDIT ENTRY</div>
+    <input type="hidden" id="edit-id" />
+    <div class="modal-grid">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="edit-date" />
+      </div>
+      <div class="field">
+        <label>Hours Worked</label>
+        <input type="number" id="edit-hours" step="0.25" min="0" max="24" />
+      </div>
+      <div class="field">
+        <label>Extra Hours (+)</label>
+        <input type="number" id="edit-extra" step="0.25" min="0" />
+      </div>
+      <div class="field">
+        <label>Less Hours (-)</label>
+        <input type="number" id="edit-less" step="0.25" min="0" />
+      </div>
+      <div class="field">
+        <label>Comment</label>
+        <input type="text" id="edit-comment" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────────────────────────────
+  let entries   = JSON.parse(localStorage.getItem('wt_entries') || '[]');
+  let sortKey   = 'date';
+  let sortDir   = -1; // -1 = desc, 1 = asc
+  let activeFilter = 'all';
+
+  // ─── INIT ────────────────────────────────────────────────────────────────────
+  document.getElementById('f-date').value = today();
+  render();
+
+  // ─── HELPERS ─────────────────────────────────────────────────────────────────
+  function today() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function fmtDate(d) {
+    const [y, m, day] = d.split('-');
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${day} ${names[+m-1]} ${y}`;
+  }
+
+  function monthKey(d) {
+    return d.slice(0, 7); // "YYYY-MM"
+  }
+
+  function monthLabel(k) {
+    const [y, m] = k.split('-');
+    const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return `${names[+m-1]} ${y}`;
+  }
+
+  function save() {
+    localStorage.setItem('wt_entries', JSON.stringify(entries));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function fmt(n, forceSign) {
+    const v = parseFloat(n) || 0;
+    return (forceSign && v >= 0 ? '+' : '') + v.toFixed(2);
+  }
+
+  // ─── ADD ENTRY ────────────────────────────────────────────────────────────────
+  function addEntry() {
+    const date    = document.getElementById('f-date').value;
+    const hours   = parseFloat(document.getElementById('f-hours').value) || 0;
+    const extra   = parseFloat(document.getElementById('f-extra').value) || 0;
+    const less    = parseFloat(document.getElementById('f-less').value) || 0;
+    const comment = document.getElementById('f-comment').value.trim();
+
+    if (!date) { showToast('⚠ Please select a date'); return; }
+
+    entries.push({
+      id: Date.now(),
+      date, hours, extra, less, comment
+    });
+
+    save();
+    render();
+    showToast('✓ Entry added');
+
+    // reset
+    document.getElementById('f-hours').value   = '';
+    document.getElementById('f-extra').value   = '';
+    document.getElementById('f-less').value    = '';
+    document.getElementById('f-comment').value = '';
+    document.getElementById('f-date').value    = today();
+  }
+
+  // ─── DELETE ───────────────────────────────────────────────────────────────────
+  function deleteEntry(id) {
+    if (!confirm('Delete this entry?')) return;
+    entries = entries.filter(e => e.id !== id);
+    save();
+    render();
+    showToast('✓ Entry deleted');
+  }
+
+  // ─── EDIT MODAL ───────────────────────────────────────────────────────────────
+  function openEdit(id) {
+    const e = entries.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('edit-id').value      = id;
+    document.getElementById('edit-date').value    = e.date;
+    document.getElementById('edit-hours').value   = e.hours;
+    document.getElementById('edit-extra').value   = e.extra;
+    document.getElementById('edit-less').value    = e.less;
+    document.getElementById('edit-comment').value = e.comment;
+    document.getElementById('edit-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+  }
+
+  function saveEdit() {
+    const id = +document.getElementById('edit-id').value;
+    const idx = entries.findIndex(x => x.id === id);
+    if (idx === -1) return;
+    entries[idx] = {
+      id,
+      date:    document.getElementById('edit-date').value,
+      hours:   parseFloat(document.getElementById('edit-hours').value) || 0,
+      extra:   parseFloat(document.getElementById('edit-extra').value) || 0,
+      less:    parseFloat(document.getElementById('edit-less').value) || 0,
+      comment: document.getElementById('edit-comment').value.trim()
+    };
+    save();
+    render();
+    closeModal();
+    showToast('✓ Entry updated');
+  }
+
+  // click outside modal to close
+  document.getElementById('edit-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // ─── FILTER & SORT ────────────────────────────────────────────────────────────
+  function setFilter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  function sortBy(key) {
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = -1; }
+    render();
+  }
+
+  function getFiltered() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    return entries.filter(e => {
+      const net = e.extra - e.less;
+      if (activeFilter === 'extra'    && net <= 0) return false;
+      if (activeFilter === 'less'     && net >= 0) return false;
+      if (activeFilter === 'balanced' && net !== 0) return false;
+      if (q && !e.comment.toLowerCase().includes(q) && !e.date.includes(q)) return false;
+      return true;
+    }).sort((a, b) => {
+      let av, bv;
+      if (sortKey === 'date')  { av = a.date;  bv = b.date; }
+      else if (sortKey === 'hours') { av = a.hours; bv = b.hours; }
+      else if (sortKey === 'extra') { av = a.extra; bv = b.extra; }
+      else if (sortKey === 'less')  { av = a.less;  bv = b.less; }
+      else if (sortKey === 'total') { av = a.extra - a.less; bv = b.extra - b.less; }
+      if (av < bv) return sortDir;
+      if (av > bv) return -sortDir;
+      return 0;
+    });
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────────
+  function render() {
+    const data = getFiltered();
+    const tbody = document.getElementById('table-body');
+    const empty = document.getElementById('empty-state');
+
+    // update header stats (always over ALL entries, not filtered)
+    const totalExtra   = entries.reduce((s, e) => s + e.extra, 0);
+    const totalLess    = entries.reduce((s, e) => s + e.less, 0);
+    const net          = totalExtra - totalLess;
+    document.getElementById('stat-entries').textContent = entries.length;
+    document.getElementById('stat-extra').textContent   = fmt(totalExtra, true);
+    document.getElementById('stat-less').textContent    = fmt(-totalLess, true);
+    const balEl = document.getElementById('stat-balance');
+    balEl.textContent  = fmt(net, true);
+    balEl.className    = 'stat-pill-value ' + (net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral');
+
+    // update sort arrows
+    document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+
+    if (!data.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    // group by month
+    const months = {};
+    data.forEach(e => {
+      const mk = monthKey(e.date);
+      if (!months[mk]) months[mk] = [];
+      months[mk].push(e);
+    });
+
+    let html = '';
+    Object.keys(months).sort((a,b) => sortDir * (b > a ? 1 : -1)).forEach(mk => {
+      const group = months[mk];
+      const mExtra = group.reduce((s,e) => s+e.extra, 0);
+      const mLess  = group.reduce((s,e) => s+e.less,  0);
+      const mNet   = mExtra - mLess;
+      const mHours = group.reduce((s,e) => s+e.hours, 0);
+
+      html += `
+        <tr>
+          <td colspan="7" style="padding:0;border-bottom:1px solid var(--border-bright);">
+            <div class="month-header">
+              <span class="month-label">${monthLabel(mk)}</span>
+              <div class="month-summary">
+                <span class="month-stat">Total Worked: <span class="neu">${mHours.toFixed(2)}h</span></span>
+                <span class="month-stat">Extra: <span class="pos">+${mExtra.toFixed(2)}h</span></span>
+                <span class="month-stat">Less: <span class="neg">-${mLess.toFixed(2)}h</span></span>
+                <span class="month-stat">Net: <span class="${mNet>=0?'pos':'neg'}">${fmt(mNet,true)}h</span></span>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+
+      group.forEach(e => {
+        const net = e.extra - e.less;
+        let badge;
+        if (net > 0) badge = `<span class="badge badge-positive">+${net.toFixed(2)}h</span>`;
+        else if (net < 0) badge = `<span class="badge badge-negative">${net.toFixed(2)}h</span>`;
+        else badge = `<span class="badge badge-zero">±0.00h</span>`;
+
+        html += `<tr>
+          <td class="td-date">${fmtDate(e.date)}</td>
+          <td class="td-hours">${e.hours > 0 ? e.hours.toFixed(2)+'h' : '—'}</td>
+          <td>${e.extra > 0 ? `<span style="color:var(--accent);font-weight:500">+${e.extra.toFixed(2)}h</span>` : '<span style="color:var(--border-bright)">—</span>'}</td>
+          <td>${e.less  > 0 ? `<span style="color:var(--danger)">-${e.less.toFixed(2)}h</span>` : '<span style="color:var(--border-bright)">—</span>'}</td>
+          <td>${badge}</td>
+          <td class="td-comment" title="${e.comment}">${e.comment || '<span style="opacity:0.3">no comment</span>'}</td>
+          <td style="text-align:center;">
+            <button class="btn-edit" onclick="openEdit(${e.id})" title="Edit">✎</button>
+            <button class="btn-delete" onclick="deleteEntry(${e.id})" title="Delete">✕</button>
+          </td>
+        </tr>`;
+      });
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  // ─── EXPORT CSV ───────────────────────────────────────────────────────────────
+  function exportCSV() {
+    if (!entries.length) { showToast('⚠ No entries to export'); return; }
+    const rows = [['Date','Hours Worked','Extra Hours','Less Hours','Net','Comment']];
+    [...entries].sort((a,b) => a.date > b.date ? -1 : 1).forEach(e => {
+      rows.push([e.date, e.hours, e.extra, e.less, (e.extra - e.less).toFixed(2), `"${e.comment.replace(/"/g,'""')}"`]);
+    });
+    const csv  = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {href:url, download:'work_hours.csv'});
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✓ CSV downloaded');
+  }
+
+  // ─── KEYBOARD SHORTCUTS ───────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && e.target.id === 'edit-comment') saveEdit();
+  });
+</script>
+</body>
+</html>
